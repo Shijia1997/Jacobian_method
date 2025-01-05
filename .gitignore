@@ -1,0 +1,21 @@
+# Ignore everything by default
+*
+
+# Allow directories to be tracked
+!*/
+
+# Whitelist Python files
+!*.py
+
+# Whitelist shell scripts
+!*.sh
+
+# Whitelist Jupyter notebooks
+!*.ipynb
+
+# Whitelist csv files
+!*.csv
+
+# Always keep the .gitignore file itself
+!.gitignore
+
