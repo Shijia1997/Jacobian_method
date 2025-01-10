@@ -4,18 +4,18 @@
 # Allow directories to be tracked
 !*/
 
-# Whitelist Python files
+# Whitelist specific file types
 !*.py
-
-# Whitelist shell scripts
 !*.sh
-
-# Whitelist Jupyter notebooks
 !*.ipynb
-
-# Whitelist csv files
 !*.csv
 
 # Always keep the .gitignore file itself
 !.gitignore
+
+# Explicitly exclude archive/ and .ipynb_checkpoints/
+archive/
+.ipynb_checkpoints/
+
+
 

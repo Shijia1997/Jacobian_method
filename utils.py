@@ -323,7 +323,8 @@ def cross_validate(model_class, dataset, num_classes, device, num_epochs, learni
             num_gpus = torch.cuda.device_count()
             if num_gpus > 1:
                 print(f"Using {num_gpus} GPUs.")
-             else:
+                model = torch.nn.DataParallel(model)
+            else:
                 print("Using 1 GPU.")
         else:
             print("Using CPU (no GPU found).")

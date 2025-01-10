@@ -48,7 +48,7 @@ class CrossAttention3D(nn.Module):
         attended, attn_weights = self.attn(Q, K, V)
 
         # Reshape back to [B, embed_dim, D, H, W]
-        attended = attended.transpose(1, 2).view(B, C, D, H, W)
+        attended = attended.transpose(1, 2).view(B, self.embed_dim, D, H, W)
         return attended, attn_weights
 
 
@@ -73,14 +73,14 @@ class CrossAttention3DClassifier(nn.Module):
             in_features = 64 * 2
             embed_dim = 64
         else:  # "attend_only"
-            in_features = 64
+            in_features = 128
             embed_dim = 128
             
         self.mri_encoder = J_CNN3DEncoder(input_channels=1, base_channels=64)
         self.jsm_encoder = J_CNN3DEncoder(input_channels=1, base_channels=64)
 
         # Cross-attention: embed_dim=64 => matches the 64 from the encoders
-        self.cross_attn = CrossAttention3D(embed_dim=128, num_heads=num_heads)
+        self.cross_attn = CrossAttention3D(embed_dim=embed_dim, num_heads=num_heads)
 
         # Decide how we'll fuse: "attend_only" or "concat"
         self.fusion_type = fusion_type

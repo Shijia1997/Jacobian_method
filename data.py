@@ -101,7 +101,7 @@ class ADNIMRIDataset(Dataset):
             
             jsm_np = jsm.numpy()
             # We preserve sign and threshold
-            jsm_np = preprocess_log_jsm_negative(jsm_np, self.thereshold)
+            #jsm_np = preprocess_log_jsm_negative(jsm_np, self.thereshold)
             
             jsm_tensor = torch.from_numpy(jsm_np).float().unsqueeze(0)  
             return jsm_tensor, label
@@ -136,7 +136,7 @@ class ADNIMRIDataset(Dataset):
 
         if self.input_type == "concat":
             jsm_arr = jsm.numpy()
-            jsm_arr = preprocess_log_jsm_negative(jsm_arr, self.thereshold)
+            #jsm_arr = preprocess_log_jsm_negative(jsm_arr, self.thereshold)
             jsm_tensor = torch.from_numpy(jsm_arr).float().unsqueeze(0)
             
             concatenated_img = torch.cat((img_tensor, jsm_tensor), dim=0)
@@ -144,12 +144,12 @@ class ADNIMRIDataset(Dataset):
 
         if self.input_type == "attention":
             jsm_arr = jsm.numpy()
-            jsm_arr = preprocess_log_jsm_negative(jsm_arr, self.thereshold)
+            #jsm_arr = preprocess_log_jsm_negative(jsm_arr, self.thereshold)
             jsm_tensor = torch.from_numpy(jsm_arr).float().unsqueeze(0)
             return img_tensor, jsm_tensor, label
 
         if self.input_type == "cross_attention":
             jsm_arr = jsm.numpy()
-            jsm_arr = preprocess_log_jsm_negative(jsm_arr, self.thereshold)
+            #jsm_arr = preprocess_log_jsm_negative(jsm_arr, self.thereshold)
             jsm_tensor = torch.from_numpy(jsm_arr).float().unsqueeze(0)
             return img_tensor, jsm_tensor, label
