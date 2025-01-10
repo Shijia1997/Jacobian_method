@@ -272,7 +272,25 @@ def evaluate_model(
     return roc_auc, pr_auc, accuracy, macro_f1, precision, recall
 
 
-def cross_validate(model_class, dataset, num_classes, device, num_epochs, learning_rate, dtype, model_name, cls_type, output_folder, batch_size,fusion_type,apply_rotation,max_rotation,thereshold,input_type="single"):
+def cross_validate(
+    model_class, 
+    dataset, 
+    num_classes, 
+    device, 
+    num_epochs, 
+    learning_rate, 
+    dtype, 
+    model_name, 
+    cls_type, 
+    output_folder, 
+    batch_size,
+    fusion_type, 
+    apply_rotation, 
+    max_rotation, 
+    thereshold, 
+    input_type="single",
+    qkv_mode="mri2jsm"   # <--- New argument here!
+):
     os.makedirs(output_folder, exist_ok=True)
     results_path = os.path.join(output_folder, f'cross_validation_results_{dtype}_{model_name}_{cls_type}_{input_type}.csv')
 
@@ -294,31 +312,38 @@ def cross_validate(model_class, dataset, num_classes, device, num_epochs, learni
         print(f"Starting Fold {fold_idx + 1}/{len(unique_folds)}...")
 
         # Split dataset into train and test
-
         test_data = dataset[dataset["fold"] == fold_idx]
         train_data = dataset[dataset["fold"] != fold_idx]
-
         train_data = train_data.reset_index(drop=True)
         test_data = test_data.reset_index(drop=True)
 
-
-        train_image_paths, train_JSM_paths, train_labels = load_data(train_data, dtype, cls_type,input_type)
-        test_image_paths, test_JSM_paths, test_labels = load_data(test_data, dtype, cls_type,input_type)
+        train_image_paths, train_JSM_paths, train_labels = load_data(train_data, dtype, cls_type, input_type)
+        test_image_paths,  test_JSM_paths,  test_labels  = load_data(test_data,  dtype, cls_type, input_type)
 
         train_image_paths = train_image_paths.tolist()
-        test_image_paths = test_image_paths.tolist()
-        train_JSM_paths = train_JSM_paths.tolist() if train_JSM_paths is not None else None
-        test_JSM_paths = test_JSM_paths.tolist() if test_JSM_paths is not None else None
+        test_image_paths  = test_image_paths.tolist()
+        train_JSM_paths   = train_JSM_paths.tolist() if train_JSM_paths is not None else None
+        test_JSM_paths    = test_JSM_paths.tolist()  if test_JSM_paths is not None else None
 
         # Determine channels
-        num_channels = 1 if input_type in ["single", "attention", "jsm","cross_attention"] else 2
-        
+        num_channels = 1 if input_type in ["single", "attention", "jsm", "cross_attention"] else 2
+
+        # -----------------------------------------------
+        # Choose which model to instantiate
+        # -----------------------------------------------
         if input_type == "cross_attention":
-            model = CrossAttention3DClassifier(fusion_type = fusion_type,num_heads=4, num_classes = num_classes)
+            # Pass the new qkv_mode here
+            model = CrossAttention3DClassifier(
+                fusion_type = fusion_type,
+                num_heads   = 4,
+                num_classes = num_classes,
+                qkv_mode    = qkv_mode
+            )
         else:
+            # Normal model instantiation
             model = model_class(input_channels=num_channels, num_classes=num_classes).to(device)
-            
-        
+
+        # Handle multiple GPUs
         if torch.cuda.is_available():
             num_gpus = torch.cuda.device_count()
             if num_gpus > 1:
@@ -328,37 +353,42 @@ def cross_validate(model_class, dataset, num_classes, device, num_epochs, learni
                 print("Using 1 GPU.")
         else:
             print("Using CPU (no GPU found).")
-        
+
         model = model.to(device)
 
         train_dataset = ADNIMRIDataset(
             image_paths=train_image_paths,
             image_labels=train_labels,
-            jsm_paths=train_JSM_paths if input_type in ["concat", "attention", "jsm","cross_attention"] else None,
+            jsm_paths=train_JSM_paths if input_type in ["concat", "attention", "jsm", "cross_attention"] else None,
             input_type=input_type,
-            apply_random_rotation = apply_rotation,
-            max_rotation = max_rotation,
-            thereshold = thereshold
+            apply_random_rotation=apply_rotation,
+            max_rotation=max_rotation,
+            thereshold=thereshold
         )
 
         test_dataset = ADNIMRIDataset(
             image_paths=test_image_paths,
             image_labels=test_labels,
-            jsm_paths=test_JSM_paths if input_type in ["concat", "attention", "jsm","cross_attention"] else None,
+            jsm_paths=test_JSM_paths if input_type in ["concat", "attention", "jsm", "cross_attention"] else None,
             input_type=input_type,
-            apply_random_rotation = False,
-            max_rotation = 0,
-            thereshold = thereshold
+            apply_random_rotation=False,
+            max_rotation=0,
+            thereshold=thereshold
         )
 
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        test_dataloader  = DataLoader(test_dataset,  batch_size=batch_size, shuffle=False)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         criterion = nn.CrossEntropyLoss()
 
+        # Train
         model = train_model(model, train_dataloader, optimizer, criterion, num_epochs, device, input_type)
-        roc_auc, pr_auc, accuracy, macro_f1, precision, recall = evaluate_model(model, test_dataloader, num_classes, device, input_type)
+
+        # Validate
+        roc_auc, pr_auc, accuracy, macro_f1, precision, recall = evaluate_model(
+            model, test_dataloader, num_classes, device, input_type
+        )
 
         print(
             f"Fold {fold_idx + 1} Metrics: AUC={roc_auc:.4f}, PR AUC={pr_auc:.4f}, "
@@ -376,6 +406,7 @@ def cross_validate(model_class, dataset, num_classes, device, num_epochs, learni
         }
         all_metrics.append(fold_metrics)
 
+        # Save results
         with open(results_path, mode="a", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([
@@ -390,8 +421,6 @@ def cross_validate(model_class, dataset, num_classes, device, num_epochs, learni
 
     print(f"Results saved to {results_path}")
     return results_path
-
-
 
 
 
